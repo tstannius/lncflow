@@ -1,0 +1,11 @@
+# editor and pipeline files and dirs
+.ipynb_checkpoints/
+*.ipynb
+.snakemake/
+logs/
+notebooks/
+out/
+tmp/
+
+# data files
+*.csv
