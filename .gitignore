@@ -6,6 +6,7 @@ logs/
 notebooks/
 out/
 tmp/
+tmp
 
 # data files
 *.csv
