@@ -44,6 +44,8 @@ runs = [
         "d2V",
         "d5D",
         "d5V",
+        # "d9D", # bad run
+        # "d9V", # bad run
         "d9D_2", # fix poor naming
         "d9V_2",
         "d14V", 
@@ -56,7 +58,6 @@ runs = [
         ]
 
 days = set([re.search("\d+", r).group(0) for r in runs if r != "d0es"])
-days = ["14"]
 
 runs_citeseq = [name for name in os.listdir(path_citeseq_out)]
 
@@ -102,21 +103,29 @@ rule copy_10x_samplefolder:
         """
         cp -r {input} {output}
         """
-
-
+# try sorting to fix issue with velocyto
+# samtools sort -t CB -O BAM -o cellsorted_possorted_genome_bam.bam possorted_genome_bam.bam
+# alternatively do not use velocyto, as it is not throughly investigated if there's any benefit
+# over using cellranger
 
 rule velocyto:
     input:
         samplefolder = rules.copy_10x_samplefolder.output # TODO does this work? f"tmp/{{run}}-5000_cells"
+        # samplefolder = "/scratch/tstannius/bicropflow/tmp/TEST_bicrop_mRNA" # For gRNA detection pilot
     output:
         f"out/{hgref_version}/loom/{{run}}.loom" # on scratch
+        # f"out/{hgref_version}/loom/d0-dv-pgRNA.loom" # on scratch
     params:
         loom = lambda wildcards: get_loom(wildcards, path_scratch),
+        # loom = f"{path_scratch}/tmp/TEST_bicrop_mRNA/velocyto/TEST_bicrop_mRNA.loom", # For gRNA detection pilot
         conda_env = env_velocyto,
         gtffile = path_annotation,
+        # gtffile = "/nfsdata/projects/tstannius/data/resources/hg38/cropseq/GRCh38-2020-A-spiked/genes/genes.gtf", # For gRNA detection pilot
         rmsk = path_rmsk,
+        mem = 1500
     threads: 20
     log: f"logs/velocyto/{hgref_version}/{{run}}.log"
+    # log: f"logs/velocyto/{hgref_version}/d0-dv-pgRNA.log" # For gRNA detection pilot
     shell:
         "("
         "module load anaconda;\n"
@@ -125,6 +134,7 @@ rule velocyto:
         "velocyto run10x"
         "    --mask {params.rmsk}"
         "    --samtools-threads {threads}"
+        "    --samtools-memory {params.mem}"
         "    {input.samplefolder}"
         "    {params.gtffile};\n"
 
@@ -140,7 +150,9 @@ rule loom2rds:
         rules.velocyto.output
     output:
         temp(f"out/{hgref_version}/{{run}}/{{run}}-raw.rds") # on nfsdata
+        # f"out/{hgref_version}/d0-dv-pgRNA/d0-dv-pgRNA-raw.rds" # for gRNA detection pilot
     log: f"logs/loom2rds/{hgref_version}/{{run}}.log"
+    # log: f"logs/loom2rds/{hgref_version}/d0-dv-pgRNA-raw.log" # for gRNA detection pilot
     params:
         conda_env = env_r,
         path_script = "/nfsdata/projects/tstannius/lncflow/scripts/seurat/loom2rds_seurat4.R" # abs path necessary
@@ -265,7 +277,7 @@ rule seurat_find_markers_regional:
 rule all:
     input:
         expand("out/{hgrv}/{sample}/{sample}-{mux}-markers.csv", zip, hgrv=[hgref_version for i in range(len(runs))], sample=runs, mux=runs2demux),
-        expand("out/{hgrv}/d{day}/d{day}{region}-markers_regional.csv", hgrv=[hgref_version for i in range(len(days))], day=days, region=["D", "V"]),
+        # expand("out/{hgrv}/d{day}/d{day}{region}-markers_regional.csv", hgrv=[hgref_version for i in range(len(days))], day=days, region=["D", "V"]),
         # expand("out/{hgrv}/d{day}/d{day}-integrated.rds", hgrv=[hgref_version for i in range(len(days))], day=days),
         
 
